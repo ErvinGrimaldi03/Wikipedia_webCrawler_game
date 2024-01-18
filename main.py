@@ -1,62 +1,62 @@
-import requests
+from urllib.request import urlopen
 from bs4 import BeautifulSoup
-import random as rand
+from multiprocessing.pool import ThreadPool as Pool
+import re
+import time
+import random
+from _JSON import save_json
+from functools import lru_cache
 
-# A list of all visited links
-visited = []
+import requests
 
-'''
-Recursive Function
-This function is passed with the starting link(current link) and the ending link
-The function also returns feedback 
-'''
-
-
-def linkRetrieval(start, end):
-
-    try:
-        global visited
-        print(f'we are at {start}\n')
-        visited.append(start)
-        link_wikipidia = []
-        if start != end:
-            r = requests.get(start)
-            soup = BeautifulSoup(r.content, "html.parser")
-            main_wrap = soup.find("div", "mw-parser-output")
-            all_a = main_wrap.find_all("a", href=True)
-
-            for element in all_a:
-                sliced = str(element)[:15]
-                if sliced == '<a href="/wiki/' and f"https://en.wikipedia.org/{element['href']}" not in visited:
-                    if "https://en.wikipedia.org//wiki/Special:" not in element:
-                        link_wikipidia.append(f"https://en.wikipedia.org/{element['href']}")
-        next = rand.choice(link_wikipidia)
-        return linkRetrieval(next, end)
-    except:
-        print(len(visited))
+WIKIPEDIA_BASE_URL = "https://en.wikipedia.org"
+WIKIPEDIA_ROOT_URL = '<a href="/wiki/'
+POOL_SIZE = 5
+UNDERSIRED_TAGS = ['/wiki/Special', '/wiki/Template']
+REG_EX = f'^<a href="\/wiki\/[^\/:"]+"'
 
 
-def _input():
-    start = input("Insert starting word: ")
-    test = requests.get(f"https://en.wikipedia.org/wiki/{start}")
-    if test.status_code != 200:
-        print(f"{start} page on wikipedia doesn't exists")
-        _input()
-    _wikiStart = f"https://en.wikipedia.org/wiki/{start}"
 
-    end = input("Insert ending word: ")
-    test = requests.get(f"https://en.wikipedia.org/wiki/{end}")
-    if test.status_code != 200:
-        print(f"{start} page on wikipedia doesn't exists")
-        _input()
-    _wikiEnd = f"https://en.wikipedia.org/wiki/{end}"
-
-    linkRetrieval(_wikiStart, _wikiEnd)
+def connect(webstie):
+    url_website = requests.get(webstie)
+    if url_website.status_code != 200: return
+    return url_website
 
 
-def run():
-    _input()
+
+
+def extract_childs(soup):
+    a_href_candidates = []
+    for href in soup.find_all("a", attrs={"title" : True}):
+        href_str = href.__str__()
+        if bool(re.match(REG_EX, href_str)):
+            a_href_candidates.append(href)
+    selected_five = []
+    #print(len(a_href_candidates))
+    return ([(WIKIPEDIA_BASE_URL+i['href']) for i in random.choices(a_href_candidates, k=5) if connect(WIKIPEDIA_BASE_URL+i['href'])], a_href_candidates)
+
+def run(wiki_page):
+    connection_website = connect(wiki_page)
+    title = wiki_page[30:]
+    wiki_page_childs = {title: []}
+
+    soup = BeautifulSoup(connection_website.content, features="html5lib")
+    childs, candidates = extract_childs(soup)
+    print(len(candidates), title)
+    for link in candidates:
+        wiki_page_childs[title].append(WIKIPEDIA_BASE_URL+link['href'])
+    save_json(wiki_page_childs, title)
+    run(random.choice(childs))
+
 
 
 if __name__ == "__main__":
-    run()
+    #startingname_user = input()
+    startingname_user = "/wiki/Mario"
+    s = time.perf_counter()
+    WIKIPEDIA_STARTPAGE = WIKIPEDIA_BASE_URL + startingname_user
+    run(WIKIPEDIA_STARTPAGE)
+
+    print(time.perf_counter() - s)
+
+
