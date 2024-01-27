@@ -6,6 +6,7 @@ import time
 import random
 from _JSON import save_json
 from functools import lru_cache
+from crawler import WikiCrawler
 
 import requests
 
@@ -40,7 +41,7 @@ def run(wiki_page):
     title = wiki_page[30:]
     wiki_page_childs = {title: []}
 
-    soup = BeautifulSoup(connection_website.content, features="html5lib")
+    soup = BeautifulSoup(connection_website.content, features="html")
     childs, candidates = extract_childs(soup)
     print(len(candidates), title)
     for link in candidates:
@@ -52,11 +53,12 @@ def run(wiki_page):
 
 if __name__ == "__main__":
     #startingname_user = input()
-    startingname_user = "/wiki/Mario"
-    s = time.perf_counter()
-    WIKIPEDIA_STARTPAGE = WIKIPEDIA_BASE_URL + startingname_user
-    run(WIKIPEDIA_STARTPAGE)
+    startingname_user = "Mario"
 
-    print(time.perf_counter() - s)
+    wiki_crawl = WikiCrawler(startingname_user)
+
+    print(wiki_crawl.wiki_childs)
+
+
 
 
