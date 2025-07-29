@@ -1,64 +1,41 @@
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
-from multiprocessing.pool import ThreadPool as Pool
-import re
+# main.py
+from src.wiki_crawler import WikiCrawler
+from src.wiki_config import WIKIPEDIA_BASE_URL
 import time
-import random
-from _JSON import save_json
-from functools import lru_cache
-from crawler import WikiCrawler
-
-import requests
-
-WIKIPEDIA_BASE_URL = "https://en.wikipedia.org"
-WIKIPEDIA_ROOT_URL = '<a href="/wiki/'
-POOL_SIZE = 5
-UNDERSIRED_TAGS = ['/wiki/Special', '/wiki/Template']
-REG_EX = f'^<a href="\/wiki\/[^\/:"]+"'
-
-
-
-def connect(webstie):
-    url_website = requests.get(webstie)
-    if url_website.status_code != 200: return
-    return url_website
-
-
-
-
-def extract_childs(soup):
-    a_href_candidates = []
-    for href in soup.find_all("a", attrs={"title" : True}):
-        href_str = href.__str__()
-        if bool(re.match(REG_EX, href_str)):
-            a_href_candidates.append(href)
-    selected_five = []
-    #print(len(a_href_candidates))
-    return ([(WIKIPEDIA_BASE_URL+i['href']) for i in random.choices(a_href_candidates, k=5) if connect(WIKIPEDIA_BASE_URL+i['href'])], a_href_candidates)
-
-def run(wiki_page):
-    connection_website = connect(wiki_page)
-    title = wiki_page[30:]
-    wiki_page_childs = {title: []}
-
-    soup = BeautifulSoup(connection_website.content, features="html")
-    childs, candidates = extract_childs(soup)
-    print(len(candidates), title)
-    for link in candidates:
-        wiki_page_childs[title].append(WIKIPEDIA_BASE_URL+link['href'])
-    save_json(wiki_page_childs, title)
-    run(random.choice(childs))
-
-
 
 if __name__ == "__main__":
-    #startingname_user = input()
-    startingname_user = "Mario"
+    start_page_title = input("Enter the Wikipedia page title to start crawling from (e.g., Mario): ")
+    if not start_page_title:
+        start_page_title = "Mario" # Default for demonstration because MAMMA MIAAAAAA
 
-    wiki_crawl = WikiCrawler(startingname_user)
+    start_url = f"{WIKIPEDIA_BASE_URL}/wiki/{start_page_title.replace(' ', '_')}"
 
-    print(wiki_crawl.wiki_childs)
+    crawler = WikiCrawler(start_url)
+    print(f"Starting crawl from: {start_url}")
 
+    start_time = time.time()
+    crawler.start_crawl()
+    end_time = time.time()
 
+    print(f"\nCrawl completed in {end_time - start_time:.2f} seconds.")
 
+    # Example: Retrieve data for a crawled page
+    example_title = "Luigi" # Or any other page you expect to be crawled
+    # To get a title that was definitely crawled, we could iterate `crawler.get_visited_pages()`
+    # and pick one, or simply use the start_page_title if it was successfully crawled.
 
+    # Let's try to load the data for the starting page
+    retrieved_data = crawler.get_page_data(start_page_title)
+    if retrieved_data:
+        print(f"\nData for '{start_page_title}':")
+        # print(json.dumps(retrieved_data, indent=2)) # Requires import json
+        print(f"  URL: {retrieved_data['url']}")
+        print(f"  Category: {retrieved_data['category']}")
+        print(f"  Number of links found: {len(retrieved_data['links'])}")
+    else:
+        print(f"\nCould not retrieve data for '{start_page_title}'.")
+
+    # Example: Get related wikis using the API for the starting page
+    related_api = crawler.get_related_wikis_api(start_page_title)
+    if related_api:
+        print(f"\nRelated wikis for '{start_page_title}' (from API): {related_api[:5]}...") # Show first 5
