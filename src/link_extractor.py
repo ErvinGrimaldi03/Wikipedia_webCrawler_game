@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
 import re
+from urllib.parse import unquote
 from src.wiki_config import WIKIPEDIA_BASE_URL, VALID_WIKI_LINK_REGEX
+
 
 class LinkExtractor:
     """entity responsible for extracting links from HTML content"""
@@ -20,7 +22,19 @@ class LinkExtractor:
         return list(links)
 
     def get_page_title(self, url):
+        """
+        Extract page title from URL, preserving disambiguation markers.
+
+        Examples:
+        - http://en.wikipedia.org/wiki/Sheriff -> "Sheriff"
+        - http://en.wikipedia.org/wiki/Sheriff_(disambiguation) -> "Sheriff (disambiguation)"
+        - http://en.wikipedia.org/wiki/New_York_City -> "New York City"
+        """
         parts = url.split("/")
         if parts and parts[-1]:
-            return parts[-1].replace('_', ' ')
+            # URL decode to handle special characters
+            title = unquote(parts[-1])
+            # Replace underscores with spaces
+            #title = title.replace('_', ' ')
+            return title
         return 'Unknown'
